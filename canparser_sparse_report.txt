@@ -1,0 +1,77 @@
+Processing file: candump-2020-01-29_115602.log
+Processing file: candump-2020-01-30_172000.log
+Processing file: candump-2020-01-30_054738.log
+Processing file: candump-2020-02-01_064223.log
+Processing file: candump-from_db0.log
+Processing file: candump-2020-02-01_064222.log
+Processing file: candump-from_db1.log
+--------------------------------------------------------------------------------
+ Finished Input File: candump-from_db1.log
+        Elapsed time: 133.66275325000606 s
+        Conversion rate: 0.08144878676347742 ms per line
+        output/input: 1169422/1641065 lines.
+        Saved to: candump-from_db1.log_chunk_1.hdf5
+ ================================================================================
+
+--------------------------------------------------------------------------------
+ Finished Input File: candump-from_db0.log
+        Elapsed time: 255.11436486300954 s
+        Conversion rate: 0.07832802114307938 ms per line
+        output/input: 2237475/3257000 lines.
+        Saved to: candump-from_db0.log_chunk_3.hdf5
+ ================================================================================
+
+Warning: wrong payload size. Expected: 3, got: 5 b'\xff\x00\x02\x84B'
+Warning: wrong payload size. Expected: 4, got: 8 b'\xf1-\x11\xec\x10-\n?'
+Warning: wrong payload size. Expected: 3, got: 2 b'\xff\x00'
+Warning: wrong payload size. Expected: 7, got: 4 b'\xfb\xe4\x04\x00'
+--------------------------------------------------------------------------------
+ Finished Input File: candump-2020-01-29_115602.log
+        Elapsed time: 564.9391316579931 s
+        Conversion rate: 0.0768182780922747 ms per line
+        output/input: 7354211/7354228 lines.
+        Saved to: candump-2020-01-29_115602.log_chunk_7.hdf5
+ ================================================================================
+
+Warning: wrong payload size. Expected: 8, got: 6 b'\xe3\xaf\x00Rv`'
+--------------------------------------------------------------------------------
+ Finished Input File: candump-2020-02-01_064222.log
+        Elapsed time: 889.43487034602 s
+        Conversion rate: 0.07680846403568008 ms per line
+        output/input: 11554538/11579907 lines.
+        Saved to: candump-2020-02-01_064222.log_chunk_11.hdf5
+ ================================================================================
+
+--------------------------------------------------------------------------------
+ Finished Input File: candump-2020-02-01_064223.log
+        Elapsed time: 979.4102572089978 s
+        Conversion rate: 0.07527709483638646 ms per line
+        output/input: 12974528/13010734 lines.
+        Saved to: candump-2020-02-01_064223.log_chunk_13.hdf5
+ ================================================================================
+
+Warning: wrong payload size. Expected: 8, got: 7 b'\xe2\x9e\x12\xd5\x14\x15`'
+Warning: wrong payload size. Expected: 8, got: 7 b'\xe2\x1e\x10o\x04\xe9"'
+Warning: wrong payload size. Expected: 8, got: 2 b'\xdd/'
+Warning: wrong payload size. Expected: 8, got: 7 b'\xe2S\xc4\x19\xf0\n?'
+Warning: wrong payload size. Expected: 8, got: 7 b'\xe4\xd1\x0f[\x06\x02\x00'
+--------------------------------------------------------------------------------
+ Finished Input File: candump-2020-01-30_172000.log
+        Elapsed time: 1392.4408081769943 s
+        Conversion rate: 0.07664921769209575 ms per line
+        output/input: 18052116/18166406 lines.
+        Saved to: candump-2020-01-30_172000.log_chunk_18.hdf5
+ ================================================================================
+
+Warning: wrong payload size. Expected: 4, got: 6 b'\xf0\x00\xff\xff\x00\x9c'
+Warning: wrong payload size. Expected: 2, got: 6 b'\xf0\x00\x0f\xb4\x00\xe3'
+Warning: wrong payload size. Expected: 4, got: 6 b'\xf0\x00\xff\xff\x00\xbc'
+Warning: wrong payload size. Expected: 2, got: 6 b'\xf0\x00\xff\xff\x00\t'
+--------------------------------------------------------------------------------
+ Finished Input File: candump-2020-01-30_054738.log
+        Elapsed time: 1805.3701519760216 s
+        Conversion rate: 0.07643768874654773 ms per line
+        output/input: 23520511/23618848 lines.
+        Saved to: candump-2020-01-30_054738.log_chunk_23.hdf5
+ ================================================================================
+
