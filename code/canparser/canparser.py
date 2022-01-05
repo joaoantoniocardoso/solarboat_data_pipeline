@@ -11,47 +11,53 @@ import pandas as pd
 import vaex
 
 from canparser_generator import CanTopicParser
-# TODO: Split this file!
-#from canparser_helpers import load_can_ids
 
 
 class CanIds:
+    """
+    Usage:
+        schema = load_can_ids('can_ids.json')
+
+        # Print each topic of each module:
+        [print(module, topic)
+         for topic in schema['modules'][module]['topics']
+         for module in schema['modules']]
+
+        # Access a specific topic of a specific module:
+        parsed_id, parsed_signature = 33, 250
+        module = schema['modules'].get(parsed_signature)
+        topic = module['topics'].get(parsed_id)
+        print(module['name'], topic['name'])
+    """
 
     @staticmethod
-    def load(
-        filename: str,
-        verbose: bool=False
-    ) -> dict:
-
+    def load(filename: str) -> dict:
         with open(filename) as schema_file:
             schema = json.load(schema_file)
 
-            if verbose:
-                print(f'Loaded {len(schema["modules"])} modules:')
-                for i, _ in enumerate(schema['modules']):
-                    print(
-                        f'\t{schema["modules"][i]["name"]}({schema["modules"][i]["signature"]})')
-                print('')
+            modules = {}
+            for module in schema['modules']:
+                topics = {}
+                for topic in module['topics']:
+                    topics[topic['id']] = topic
+                modules[module['signature']] = module
+                module['topics'] = topics
+            schema['modules'] = modules
 
             return schema
-
-    @staticmethod
-    def find_module(
-        schema: list,
-        parsed_signature: bytearray
-    ) -> Optional[dict]:
-        return next((module for module in schema['modules'] if module['signature'] == parsed_signature), None)
-
-    @staticmethod
-    def find_topic(
-        module: list,
-        parsed_topic_id: bytearray
-    ) -> Optional[dict]:
-        return next((topic for topic in module['topics'] if topic['id'] == parsed_topic_id), None)
 
 
 class Datasets:
     datasets = [
+        #{ 'input_filename': 'candump-2020-01-29_111700.log', },
+        #{ 'input_filename': 'candump-2020-01-29_114446.log', },
+        #{ 'input_filename': 'candump-2020-01-29_154348.log', },
+        #{ 'input_filename': 'candump-2020-01-30_054740.log', },
+        #{ 'input_filename': 'candump-2020-01-30_171953.log', },
+        #{ 'input_filename': 'candump-2020-01-30_171958.log', },
+        #{ 'input_filename': 'candump-2020-01-30_171959.log', },
+        #{ 'input_filename': 'candump-2020-02-01_002021.log', },
+        #{ 'input_filename': 'candump-2020-02-01_064221.log', },
         {
             'input_filename': 'candump-2020-01-29_115602.log',
             'description': 'Prova 1, Curta do dia 2020-01-29 13:51:59-03:00',
@@ -61,25 +67,25 @@ class Datasets:
         {
             'input_filename': 'candump-2020-01-30_054738.log',
             'description': 'Prova 2, Longa do dia 2020-01-30 11:16:45-03:00, dados incompletos (deveria ter 03:38:45)',
-            'from': pd.Timestamp('2020-01-30 10:02:30.768'),
+            'from': pd.Timestamp('2020-01-30 10:02:30.768') + pd.Timedelta('0 days 00:00:00.003666'),
             'to':   pd.Timestamp('2020-01-30 11:16:45'),
         },
         {
             'input_filename': 'candump-2020-01-30_172000.log',
             'description': 'Prova 3, Revezamento do dia 2020-01-31 11:23:23',
-            'from': pd.Timestamp('2020-01-30 23:32:30.720') + pd.Timedelta('0 days 00:00:32.434000'),
+            'from': pd.Timestamp('2020-01-30 23:32:30.720') + pd.Timedelta('0 days 00:00:33.279758') + pd.Timedelta('0 days 00:00:00.392470') +pd.Timedelta('0 days 00:00:00.006595'),
             'to':   pd.Timestamp('2020-01-31 13:50:06.009'),
         },
         {
             'input_filename': 'candump-2020-02-01_064223.log',
             'description': 'Prova 5, Curta do dia 2020-02-01 13:15:09-03:00',
-            'from': pd.Timestamp('2020-02-01 09:51:06.384'),
+            'from': pd.Timestamp('2020-02-01 09:51:06.384') + pd.Timedelta('0 days 00:00:00.565093') - pd.Timedelta('0 days 00:00:01.053649') -pd.Timedelta('0 days 00:00:00.013652'),
             'to':   pd.Timestamp('2020-02-01 13:15:57.592'),
         },
         {
             'input_filename': 'candump-2020-02-01_064222.log',
             'description': 'Prova 6, Slalom, e 7, Sprint',
-            'from': pd.Timestamp('2020-02-01 11:46:58.964') + pd.Timedelta('0 days 00:00:40.272000'),
+            'from': pd.Timestamp('2020-02-01 11:46:58.964') + pd.Timedelta('0 days 00:00:40.016623') + pd.Timedelta('0 days 00:00:00.296865') +pd.Timedelta('0 days 00:00:00.105090'),
             'to':   pd.Timestamp('2020-02-02 10:05:41.987'),
         },
         {
@@ -125,9 +131,8 @@ def parse_payload(
     if payload_length != expected_payload_length:
         if warning: 
             print(f'Warning: wrong payload size. '
-                  + f'Expected: {expected_payload_length}, '
-                  + f'got: {payload_length}', 
-                  payload)
+                  f'Expected: {expected_payload_length}, '
+                  f'got: {payload_length} {payload}.')
         return None
 
     parsed_payload = topic_parser.from_buffer(bytearray(payload)).as_dict()
@@ -163,18 +168,18 @@ def process_message(
     # Fixing BUGS related to wrong configs in some can modules
     if parsed['topic'] == 65:
         parsed['signature'] = 230
-        # see https://github.com/ZeniteSolar/MAB20/issues/6 
+        # see https://github.com/ZeniteSolar/MAB20/issues/6
         parsed['payload'] = parsed['payload'][:2]
     elif parsed['topic'] == 64:
         parsed['signature'] = 230
 
-    module = CanIds.find_module(schema, parsed['signature'])
+    module = schema['modules'].get(parsed['signature'], None)
     if module is None:
         if verbose: print('module =', module, "parsed =", parsed, parsed['payload'])
         return None
 
-    topic = CanIds.find_topic(module, parsed['topic'])
-    if topic is None: 
+    topic = module['topics'].get(parsed['topic'], None)
+    if topic is None:
         if verbose: print('topic =', topic, "parsed =", parsed, parsed['payload'])
         return None
 
@@ -218,11 +223,21 @@ def process_chunk(
     # Apply ReGex
     df = s.str.extractall(p, flags=flags)
 
+    print(f'{dataset_info["input_filename"]}. Length before extract: {len(s)}.\tLength after extract: {len(df)}.')
+
     # Interpret and fix timestamps
     df['timestamp'] = (
         pd.to_datetime(df['timestamp'], unit='s')
         + dataset_info['offset']
     )
+
+    # The first and the last timestamps are always correct,
+    # but there is some intermediate that is wrong, so we remove them
+    start_timestamp = df['timestamp'].values[0]
+    end_timestamp = df['timestamp'].values[-1]
+    mask = (df['timestamp'] >= start_timestamp) & (df['timestamp'] <= end_timestamp)
+    df = df.loc[mask]
+    print(f'Length after timestamp crop: {len(s)}.')
 
     # The topic_id should be interpreted as a hex number
     df['topic'] = df['topic'].apply(lambda x: int(x, 16)).astype('category')
@@ -234,7 +249,7 @@ def process_chunk(
     groups = ['unit', 'byte_name', 'topic_name', 'module_name']
     df = (
         apply_and_expand(
-            df=df.sort_values(by='timestamp', ignore_index=True),
+            df=df,
             f=process_message
         )
 
@@ -256,6 +271,16 @@ def process_chunk(
     df.columns = [separator.join(c[1:-1]) for c in df.columns]
 
     return df
+
+
+def clean_timestamp_outliers(df: vaex.dataframe.DataFrameLocal) -> vaex.dataframe.DataFrameLocal:
+    s = int(1e4)
+    timestamp_diff = np.hstack([np.zeros(s, dtype='timedelta64'), df['timestamp'].values[s:] -df['timestamp'].values[:-s]]).astype('float64')
+
+    th = 1e11
+    df['outlier'] = ((timestamp_diff < -th) & (timestamp_diff > -10*th)) | ((timestamp_diff > th) & (timestamp_diff < 10*th))
+
+    return df[df['outlier'] == False].drop(['outlier'])
 
 
 def process_candump_file(
@@ -300,7 +325,7 @@ def process_candump_file(
     for c_index, chunk in enumerate(reader):
         chunk_time_start = timer()
 
-        output_filename = input_filename + '_chunk_' + str(c_index) + output_file_format
+        output_filename = input_filename + '_chunk_' + "{:03d}".format(c_index) + output_file_format
         output_file = dataset_info['output_path'] + '/' + output_filename
         if verbose: print('output file:    ', output_file)
         if os.path.isfile(output_file):
@@ -317,8 +342,13 @@ def process_candump_file(
         if verbose: print(df.head(1).append(df.tail(1)))
         if verbose: print(df.info(verbose=True, memory_usage='deep'))
 
+        df = vaex.from_pandas(df.reset_index())
+        # Clean timestamp outliers
+        if 'db' not in input_filename:
+            df = clean_timestamp_outliers(df)
+
         # Save the processed chunk to file
-        vaex.from_pandas(df.reset_index()).export(output_file)
+        df.export(output_file)
 
         chunk_time_end = timer()
         chunk_time_elapsed = chunk_time_end - chunk_time_start
@@ -376,7 +406,7 @@ def process_dataset(
     ):
 
     returns = []
-    p = multiprocessing.Pool(processes=16)
+    p = multiprocessing.Pool(processes=multiprocessing.cpu_count())
     for dataset_info in dataset_info_list:
         if parallel:
             returns += [
@@ -415,4 +445,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
