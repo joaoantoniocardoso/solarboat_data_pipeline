@@ -19,7 +19,7 @@ class Datasets:
         resample_period: str,
         outliers_percentile: float,
         input_path: str,
-        output_path: str = None,
+        output_path: Optional[str] = None,
     ):
         if output_path is None:
             output_path = input_path
@@ -55,7 +55,7 @@ def fix_data_outliers_iqr(df: pd.DataFrame, percentile: float) -> pd.DataFrame:
     iqr = q3 - q1
     lower_limit = q1 - (1.5 * iqr)
     upper_limit = q3 + (1.5 * iqr)
-    fix_data_outliers_limits(df, upper_limit, lower_limit)
+    fix_data_outliers_limits(df, upper_limit, lower_limit)  # type: ignore
     return df
 
 
@@ -63,7 +63,6 @@ def process_chunk(
     df: pd.DataFrame,
     dataset_info: dict,
 ) -> pd.DataFrame:
-
     resample_period_in_seconds = (
         pd.to_timedelta(dataset_info["resample_period"]).to_numpy().astype(float) * 1e-9
     )
@@ -102,7 +101,7 @@ def process_chunk(
         df.resample(dataset_info["resample_period"])
         .mean()
         .interpolate(method="time", limit_area="inside", limit=sample_limit)
-    )
+    )  # type: ignore
 
 
 def process_candump_file(
@@ -112,6 +111,7 @@ def process_candump_file(
 
     input_filename = dataset_info["input_filename"]
     input_file = dataset_info["input_path"] + "/" + input_filename
+    output_filename = ""
 
     reader = vaex.open(input_file).to_pandas_df(chunk_size=chunksize)
 
@@ -146,7 +146,7 @@ def process_candump_file(
         )
 
         if verbose:
-            print(df.head(1).append(df.tail(1)))
+            print(df.head(1).append(df.tail(1)))  # type: ignore
         if verbose:
             print(df.info(verbose=True, memory_usage="deep"))
 
@@ -183,7 +183,6 @@ def dataset_processor(
     dataset_info: dict,
     chunksize: int,
 ):
-
     print("Processing file:", dataset_info["input_filename"])
 
     report = process_candump_file(dataset_info, chunksize)
@@ -208,7 +207,6 @@ def dataset_processor(
 def process_dataset(
     dataset_info_list: List[dict], chunksize: int, parallel: bool = True
 ):
-
     returns = []
 
     with multiprocessing.Pool(processes=multiprocessing.cpu_count()) as pool:
@@ -224,7 +222,6 @@ def process_dataset(
 
 
 def main2020():
-
     datasets = [
         {
             "input_filename": "candump-2020-01-29_115602.log_combined_chunk_*.hdf5",
@@ -276,7 +273,6 @@ def main2020():
 
 
 def main2022():
-
     datasets = [
         {
             "input_filename": "candump-2022-03-15_205017.log_chunk_*.hdf5",
@@ -316,7 +312,6 @@ def main2022():
 
 
 def main2022_ita():
-
     datasets = [
         # {
         #     "input_filename": "candump-2022-10-12_?.log_chunk_*.hdf5",

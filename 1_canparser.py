@@ -50,7 +50,9 @@ class CanIds:
 
 
 class Datasets:
-    def __init__(self, datasets: list, input_path: str, output_path: str = None):
+    def __init__(
+        self, datasets: list, input_path: str, output_path: Optional[str] = None
+    ):
         if output_path is None:
             output_path = input_path
 
@@ -113,16 +115,19 @@ def parse_payload(
     return payload_data_list
 
 
-def process_message(parsed: list, verbose: bool = False) -> Optional[list]:
+def process_message(
+    parsed: dict, schema: dict, verbose: bool = False, mab20_workaround: bool = False
+) -> Optional[list]:
     parsed["signature"] = parsed["payload"][0]
 
     # Fixing BUGS related to wrong configs in some can modules
-    if parsed["topic"] == 65:
-        parsed["signature"] = 230
-        # see https://github.com/ZeniteSolar/MAB20/issues/6
-        parsed["payload"] = parsed["payload"][:2]
-    elif parsed["topic"] == 64:
-        parsed["signature"] = 230
+    if mab20_workaround:
+        if parsed["topic"] == 65:
+            parsed["signature"] = 230
+            # see https://github.com/ZeniteSolar/MAB20/issues/6
+            parsed["payload"] = parsed["payload"][:2]
+        elif parsed["topic"] == 64:
+            parsed["signature"] = 230
 
     module = schema["modules"].get(parsed["signature"], None)
     if module is None:
@@ -164,30 +169,26 @@ def process_message(parsed: list, verbose: bool = False) -> Optional[list]:
 
 
 def apply_and_expand(
-    df: pd.DataFrame, f: Callable[[pd.DataFrame], pd.DataFrame]
+    df: pd.DataFrame, f: Callable[[pd.DataFrame], pd.DataFrame], **kwargs
 ) -> pd.DataFrame:
     """Apply a function 'f' that returns multiple rows to 'df'.
     A reindexed DataFrame will be returned with all new rows."""
 
     processed_messages = []
     for message in df.to_dict("records"):
-        processed_message = f(message)
+        processed_message = f(message, **kwargs)  # type: ignore
         if not processed_message:
             continue
         processed_messages += processed_message
 
-    return pd.DataFrame.from_dict(processed_messages)
+    return pd.DataFrame.from_dict(processed_messages)  # type: ignore
 
 
 def process_chunk(
-    s: pd.Series,
-    p: re.Pattern,
-    flags,
-    dataset_info: dict,
+    s: pd.Series, p: str, flags, dataset_info: dict, schema: dict
 ) -> pd.DataFrame:
-
     # Apply ReGex
-    df = s.str.extractall(p, flags=flags)
+    df: pd.DataFrame = s.str.extractall(p, flags=flags)
 
     print(
         f'{dataset_info["input_filename"]}. Length before extract: {len(s)}.\tLength after extract: {len(df)}.'
@@ -213,29 +214,29 @@ def process_chunk(
     # Processing pipeline
     groups = ["unit", "byte_name", "topic_name", "module_name"]
     df = (
-        apply_and_expand(df=df, f=process_message)
+        apply_and_expand(df=df, f=process_message, schema=schema)  # type: ignore
         # Same as pivot(), but a little faster:
         .groupby(
             by=[*groups, "timestamp"],
             sort=False,
         )
         .mean()
-        .unstack(groups[::-1])
+        .unstack(groups[::-1])  # type: ignore
         .rename_axis("timestamp")
         # Downcast
-        .astype("float16")
+        .astype(np.float16)
     )
 
     # Rename columns, going from multi-index to simple index
     separator = "__"
-    df.columns = [separator.join(c[1:-1]) for c in df.columns]
+    df.columns = [separator.join(c[1:-1]) for c in df.columns]  # type: ignore
 
     return df
 
 
 def clean_timestamp_outliers(
-    df: vaex.dataframe.DataFrameLocal,
-) -> vaex.dataframe.DataFrameLocal:
+    df: vaex.dataframe.DataFrameLocal,  # type: ignore
+) -> vaex.dataframe.DataFrameLocal:  # type: ignore
     s = int(1e4)
     timestamp_diff = np.hstack(
         [
@@ -253,7 +254,11 @@ def clean_timestamp_outliers(
 
 
 def process_candump_file(
-    dataset_info: dict, chunksize: int, output_file_format: str = ".hdf5", verbose=False
+    dataset_info: dict,
+    schema: dict,
+    chunksize: int,
+    output_file_format: str = ".hdf5",
+    verbose=False,
 ) -> dict:
     time_start = timer()
 
@@ -285,6 +290,7 @@ def process_candump_file(
         skip_blank_lines=True,
         on_bad_lines="skip",
     )
+    output_filename = ""
 
     total_input_lines = 0
     total_output_lines = 0
@@ -309,10 +315,11 @@ def process_candump_file(
             regex_pattern,
             regex_flags,
             dataset_info,
+            schema,
         )
 
         if verbose:
-            print(df.head(1).append(df.tail(1)))
+            print(df.head(1).append(df.tail(1)))  # type: ignore
         if verbose:
             print(df.info(verbose=True, memory_usage="deep"))
 
@@ -327,7 +334,7 @@ def process_candump_file(
         chunk_time_end = timer()
         chunk_time_elapsed = chunk_time_end - chunk_time_start
         chunk_input_lines = len(chunk)
-        chunk_output_lines = len(df)
+        chunk_output_lines = len(df)  # type: ignore
         if verbose:
             print(
                 *[
@@ -352,12 +359,12 @@ def process_candump_file(
 
 def dataset_processor(
     dataset_info: dict,
+    schema: dict,
     chunksize: int,
 ):
-
     print("Processing file:", dataset_info["input_filename"])
 
-    report = process_candump_file(dataset_info, chunksize)
+    report = process_candump_file(dataset_info, schema, chunksize)
 
     report_str = [
         "-" * 80 + "\n",
@@ -377,18 +384,17 @@ def dataset_processor(
 
 
 def process_dataset(
-    dataset_info_list: List[dict], chunksize: int, parallel: bool = True
+    dataset_info_list: List[dict], schema: dict, chunksize: int, parallel: bool = True
 ):
-
     returns = []
     p = multiprocessing.Pool(processes=multiprocessing.cpu_count())
     for dataset_info in dataset_info_list:
         if parallel:
             returns += [
-                p.apply_async(dataset_processor, args=(dataset_info, chunksize))
+                p.apply_async(dataset_processor, args=(dataset_info, schema, chunksize))
             ]
         else:
-            dataset_processor(dataset_info, chunksize)
+            dataset_processor(dataset_info, schema, chunksize)
     for x in returns:
         x.get()
 
@@ -471,6 +477,7 @@ def main2020():
     chunksize = 1_000_000
     process_dataset(
         dataset_info_list,
+        schema,
         chunksize=chunksize,
         parallel=True,
     )
@@ -502,6 +509,7 @@ def main2022():
     chunksize = 1_000_000
     process_dataset(
         dataset_info_list,
+        schema,
         chunksize=chunksize,
         parallel=True,
     )
@@ -551,6 +559,7 @@ def main2022_ita():
     chunksize = 1_000_000
     process_dataset(
         dataset_info_list,
+        schema,
         chunksize=chunksize,
         parallel=True,
     )
