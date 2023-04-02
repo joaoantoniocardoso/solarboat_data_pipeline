@@ -1,7 +1,3 @@
-#!/usr/bin/env python3
-# coding: utf-8
-
-import sys
 import os
 from timeit import default_timer as timer
 import multiprocessing
@@ -12,7 +8,12 @@ import numpy as np
 import pandas as pd
 import vaex
 
-from canparser_generator import CanTopicParser
+from lib.canparser_generator import CanTopicParser
+
+
+# Why this is global? -> multiprocessing.Pool.apply_async needs all parameters to be pickleable.
+# `schema` uses `ctypes`, which are not easy to make pickleable, so the easiest way is it to be global.
+schema: dict
 
 
 class CanIds:
@@ -116,9 +117,11 @@ def parse_payload(
 
 
 def process_message(
-    parsed: dict, schema: dict, verbose: bool = False, mab20_workaround: bool = False
+    parsed: dict, verbose: bool = False, mab20_workaround: bool = False
 ) -> Optional[list]:
     parsed["signature"] = parsed["payload"][0]
+
+    global schema
 
     # Fixing BUGS related to wrong configs in some can modules
     if mab20_workaround:
@@ -184,9 +187,7 @@ def apply_and_expand(
     return pd.DataFrame.from_dict(processed_messages)  # type: ignore
 
 
-def process_chunk(
-    s: pd.Series, p: str, flags, dataset_info: dict, schema: dict
-) -> pd.DataFrame:
+def process_chunk(s: pd.Series, p: str, flags, dataset_info: dict) -> pd.DataFrame:
     # Apply ReGex
     df: pd.DataFrame = s.str.extractall(p, flags=flags)
 
@@ -255,7 +256,6 @@ def clean_timestamp_outliers(
 
 def process_candump_file(
     dataset_info: dict,
-    schema: dict,
     chunksize: int,
     output_file_format: str = ".hdf5",
     verbose=False,
@@ -315,7 +315,6 @@ def process_candump_file(
             regex_pattern,
             regex_flags,
             dataset_info,
-            schema,
         )
 
         if verbose:
@@ -359,12 +358,11 @@ def process_candump_file(
 
 def dataset_processor(
     dataset_info: dict,
-    schema: dict,
     chunksize: int,
-):
+) -> None:
     print("Processing file:", dataset_info["input_filename"])
 
-    report = process_candump_file(dataset_info, schema, chunksize)
+    report = process_candump_file(dataset_info, chunksize)
 
     report_str = [
         "-" * 80 + "\n",
@@ -384,188 +382,22 @@ def dataset_processor(
 
 
 def process_dataset(
-    dataset_info_list: List[dict], schema: dict, chunksize: int, parallel: bool = True
-):
+    dataset_info_list: List[dict], _schema: dict, chunksize: int, parallel: bool
+) -> None:
+    global schema
+    schema = _schema
+
     returns = []
     p = multiprocessing.Pool(processes=multiprocessing.cpu_count())
     for dataset_info in dataset_info_list:
         if parallel:
             returns += [
-                p.apply_async(dataset_processor, args=(dataset_info, schema, chunksize))
+                p.apply_async(dataset_processor, args=(dataset_info, chunksize))
             ]
         else:
-            dataset_processor(dataset_info, schema, chunksize)
+            dataset_processor(dataset_info, chunksize)
     for x in returns:
         x.get()
 
     p.close()
     p.join()
-
-
-def main2020():
-    global schema
-
-    schema = CanIds.load("can_ids_old.json")
-    schema = CanTopicParser.generate_parsers(schema)
-
-    datasets = [
-        # { 'input_filename': 'candump-2020-01-29_111700.log', },
-        # { 'input_filename': 'candump-2020-01-29_114446.log', },
-        # { 'input_filename': 'candump-2020-01-29_154348.log', },
-        # { 'input_filename': 'candump-2020-01-30_054740.log', },
-        # { 'input_filename': 'candump-2020-01-30_171953.log', },
-        # { 'input_filename': 'candump-2020-01-30_171958.log', },
-        # { 'input_filename': 'candump-2020-01-30_171959.log', },
-        # { 'input_filename': 'candump-2020-02-01_002021.log', },
-        # { 'input_filename': 'candump-2020-02-01_064221.log', },
-        {
-            "input_filename": "candump-2020-01-29_115602.log",
-            "description": "Prova 1, Curta do dia 2020-01-29 13:51:59-03:00",
-            "from": pd.Timestamp("2020-01-29 16:51:08.332"),
-            "to": pd.Timestamp("2020-01-29 13:51:59"),
-        },
-        {
-            "input_filename": "candump-2020-01-30_054738.log",
-            "description": "Prova 2, Longa do dia 2020-01-30 11:16:45-03:00, dados incompletos (deveria ter 03:38:45)",
-            "from": pd.Timestamp("2020-01-30 10:02:30.768")
-            + pd.Timedelta("0 days 00:00:00.003666"),
-            "to": pd.Timestamp("2020-01-30 11:16:45"),
-        },
-        {
-            "input_filename": "candump-2020-01-30_172000.log",
-            "description": "Prova 3, Revezamento do dia 2020-01-31 11:23:23",
-            "from": pd.Timestamp("2020-01-30 23:32:30.720")
-            + pd.Timedelta("0 days 00:00:33.279758")
-            + pd.Timedelta("0 days 00:00:00.392470")
-            + pd.Timedelta("0 days 00:00:00.006595"),
-            "to": pd.Timestamp("2020-01-31 13:50:06.009"),
-        },
-        {
-            "input_filename": "candump-2020-02-01_064223.log",
-            "description": "Prova 5, Curta do dia 2020-02-01 13:15:09-03:00",
-            "from": pd.Timestamp("2020-02-01 09:51:06.384")
-            + pd.Timedelta("0 days 00:00:00.565093")
-            - pd.Timedelta("0 days 00:00:01.053649")
-            - pd.Timedelta("0 days 00:00:00.013652"),
-            "to": pd.Timestamp("2020-02-01 13:15:57.592"),
-        },
-        {
-            "input_filename": "candump-2020-02-01_064222.log",
-            "description": "Prova 6, Slalom, e 7, Sprint",
-            "from": pd.Timestamp("2020-02-01 11:46:58.964")
-            + pd.Timedelta("0 days 00:00:40.016623")
-            + pd.Timedelta("0 days 00:00:00.296865")
-            + pd.Timedelta("0 days 00:00:00.105090"),
-            "to": pd.Timestamp("2020-02-02 10:05:41.987"),
-        },
-        {
-            "input_filename": "candump-from_db0.log",
-            "description": "Provas 2 e 3. Dados do TCC do Vinicius Cardoso",
-        },
-        {
-            "input_filename": "candump-from_db1.log",
-            "description": "Provas 4, 5 e 6. Dados do TCC do Vinicius Cardoso",
-        },
-    ]
-
-    dataset_info_list = Datasets(
-        datasets=datasets,
-        input_path="../data/candump",
-        output_path="../data/parsed/sparse",
-    ).as_list()
-
-    chunksize = 1_000_000
-    process_dataset(
-        dataset_info_list,
-        schema,
-        chunksize=chunksize,
-        parallel=True,
-    )
-
-
-def main2022():
-    global schema
-
-    schema = CanIds.load("can_ids_old.json")
-    schema = CanTopicParser.generate_parsers(schema)
-
-    datasets = [
-        {
-            "input_filename": "candump-2022-03-15_205017.log",
-            "description": "Provas 1 e 2 - Match Race - 2022-03-17",
-        },
-        {
-            "input_filename": "candump-2022-03-18_011750.log",
-            "description": "Provas 3 - Prova Longa - 2022-03-18",
-        },
-    ]
-
-    dataset_info_list = Datasets(
-        datasets=datasets,
-        input_path="/home/joaoantoniocardoso/ZeniteSolar/2022/Strategy22/datasets/can/candump",
-        output_path="/home/joaoantoniocardoso/ZeniteSolar/2022/Strategy22/datasets/can/parsed/sparse",
-    ).as_list()
-
-    chunksize = 1_000_000
-    process_dataset(
-        dataset_info_list,
-        schema,
-        chunksize=chunksize,
-        parallel=True,
-    )
-
-
-def main2022_ita():
-    global schema
-
-    schema = CanIds.load("can_ids.json")
-    schema = CanTopicParser.generate_parsers(schema)
-
-    datasets = [
-        # {
-        #     "input_filename": "candump-2022-10-14_080650.log",
-        #     "description": "Provas 1 e 2 - Match Race - 2022-10-12",
-        # },
-        # {
-        #     "input_filename": "candump-2022-10-13_?.log",
-        #     "description": "Interestadual - 2022-10-13",
-        # },
-        # {
-        #     "input_filename": "candump-2022-10-14_080650.log",
-        #     "description": "Prova Longa - 2022-10-14",
-        # },
-        # {
-        #     # "input_filename": "candump-2022-10-15_101750.log",
-        #     # "input_filename": "candump-2022-10-15_101751.log",
-        #     "input_filename": "candump-2022-10-15_111751.log",
-        #     "description": "Prova Curta - 2022-10-15",
-        # },
-        {
-            # "input_filename": "candump-2022-10-15_195042.log",
-            # "input_filename": "candump-2022-10-15_223341.log",  # placas essenciais
-            # "input_filename": "candump-2022-10-15_161750.log",
-            # "input_filename": "candump-2022-10-15_230913.log",
-            "input_filename": "candump-2022-10-15_234814.log",
-            "description": "Debugging - incrementtos de duty-cycle - 2022-10-15",
-        },
-    ]
-
-    dataset_info_list = Datasets(
-        datasets=datasets,
-        input_path="/home/joaoantoniocardoso/ZeniteSolar/2022/Strategy22_ita/datasets/can/candump",
-        output_path="/home/joaoantoniocardoso/ZeniteSolar/2022/Strategy22_ita/datasets/can/parsed/sparse",
-    ).as_list()
-
-    chunksize = 1_000_000
-    process_dataset(
-        dataset_info_list,
-        schema,
-        chunksize=chunksize,
-        parallel=True,
-    )
-
-
-if __name__ == "__main__":
-    # main2020()
-    # main2022()
-    main2022_ita()

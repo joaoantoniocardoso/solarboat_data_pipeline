@@ -1,8 +1,5 @@
-#!/usr/bin/env python
-# coding: utf-8
-
 import ctypes
-from typing import Tuple, List
+from typing import Tuple, List, Type
 import itertools
 
 
@@ -29,7 +26,7 @@ class CanTopicParser:
         return schema
 
     @staticmethod
-    def create(module_name: str, topic: dict) -> ctypes.LittleEndianStructure:
+    def create(module_name: str, topic: dict) -> Type[ctypes.LittleEndianStructure]:
         """
         Create a ctypes structure for the given topic.
 
@@ -54,7 +51,7 @@ class CanTopicParser:
                 "size": CanTopicParser._size_from_topic(topic),
                 "as_dict": CanTopicParser._as_dict,
             },
-        )  # type: ignore
+        )
 
     @staticmethod
     def apply_units(units: str, value: float) -> Tuple[str, float]:

@@ -1,4 +1,4 @@
-from canparser_generator import CanTopicParser
+from lib.canparser_generator import CanTopicParser
 from math import isclose
 
 
