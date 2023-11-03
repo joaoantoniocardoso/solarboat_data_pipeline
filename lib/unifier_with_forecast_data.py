@@ -9,7 +9,9 @@ import pytz
 
 
 def process_candump_file(
-    dataset_info: dict, output_file_format: str = ".hdf5", verbose=False
+    dataset_info: dict,
+    output_file_format: str = ".hdf5",
+    verbose=False,
 ) -> Optional[dict]:
     time_start = timer()
 
@@ -59,7 +61,10 @@ def process_candump_file(
     )  # type: ignore
     index = pd.DatetimeIndex(
         df_telemetry["timestamp"].to_numpy(), dtype="datetime64[ns, America/Sao_Paulo]"  # type: ignore
-    ) - pd.Timedelta(3, unit="H")
+    )
+
+    if dataset_info["shift_back_localize"]:
+        index -= pd.Timedelta(3, unit="H")
 
     df_forecast = df_forecast.reindex(
         index=index,
@@ -132,33 +137,3 @@ def process_dataset(dataset_info: dict, parallel: bool = True):
             dataset_processor(dataset_info)
         for x in returns:
             x.get()
-
-
-def main():
-    periods = [
-        #         '1ms',  # More than 25 GB... Skipping it
-        #'10ms',
-        "100ms",
-        "1s",
-        "10s",
-        "1m",
-        "5m",
-    ]
-
-    for period in periods:
-        dataset_info_list = {
-            "telemetry_filename": "candump-*.log_combined_chunk_*.hdf5",
-            "telemetry_path": "../data/parsed",
-            "output_path": "../data/final",
-            "forecast_file": "../models/Competition/datasets/nonideal_solar_dataset.csv",
-            "period": period,
-        }
-
-        process_dataset(
-            dataset_info_list,
-            parallel=False,
-        )
-
-
-if __name__ == "__main__":
-    main()

@@ -111,7 +111,7 @@
                             "bits": [
                                 "MOTOR_ON",
                                 "DMS_ON",
-                                "REVERSE",
+                                null,
                                 null,
                                 null,
                                 null,
@@ -407,13 +407,13 @@
                             "name": "INPUT_VOLTAGE_L",
                             "description": "Average input voltage, byte low",
                             "type": "u16",
-                            "units": "V/100"
+                            "units": "A/100"
                         },
                         {
                             "name": "INPUT_VOLTAGE_H",
                             "description": "Average input voltage, byte high",
                             "type": "u16",
-                            "units": "V/100"
+                            "units": "A/100"
                         },
                         {
                             "name": "DT",
@@ -936,68 +936,6 @@
             ]
         },
         {
-            "name": "MAC22",
-            "description": "Modulo de Acionamento da Contatora",
-            "signature": 180,
-            "topics": [
-                {
-                    "name": "STATE",
-                    "description": "Module state report",
-                    "id": 16,
-                    "bytes": [
-                        {
-                            "name": "SIGNATURE",
-                            "description": "Senders signature",
-                            "type": "u8",
-                            "units": ""
-                        },
-                        {
-                            "name": "STATE",
-                            "description": "State code",
-                            "type": "u8",
-                            "units": ""
-                        },
-                        {
-                            "name": "ERROR",
-                            "description": "Error code",
-                            "type": "u8",
-                            "units": ""
-                        },
-                        null,
-                        null,
-                        null,
-                        null,
-                        null
-                    ]
-                },
-                {
-                    "name": "CONTACTOR",
-                    "description": "Contactor task response",
-                    "id": 17,
-                    "bytes": [
-                        {
-                            "name": "SIGNATURE",
-                            "description": "Senders signature",
-                            "type": "u8",
-                            "units": ""
-                        },
-                        {
-                            "name": "RESPONSE",
-                            "description": "Contactor task response",
-                            "type": "u8",
-                            "units": ""
-                        },
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null
-                    ]
-                }
-            ]
-        },
-        {
             "name": "MAM19",
             "description": "Modulo de Acionamento do Motor",
             "signature": 190,
@@ -1055,31 +993,6 @@
                             "type": "u8",
                             "units": "%"
                         },
-                        null,
-                        null,
-                        null,
-                        null,
-                        null
-                    ]
-                },
-                {
-                    "name": "CONTACTOR",
-                    "description": "Contactor requests",
-                    "id": 18,
-                    "bytes": [
-                        {
-                            "name": "SIGNATURE",
-                            "description": "Senders signature",
-                            "type": "u8",
-                            "units": ""
-                        },
-                        {
-                            "name": "REQUEST",
-                            "description": "Control the Contactor State",
-                            "type": "u8",
-                            "units": ""
-                        },
-                        null,
                         null,
                         null,
                         null,

@@ -90,8 +90,8 @@ def resample():
     resample_periods = [
         #         '1ms',  # More than 25 GB... Skipping it
         # '10ms',
-        "100ms",
-        # "1s",
+        # "100ms",
+        "1s",
         # '10s',
         # '1min',
         # '5min',
