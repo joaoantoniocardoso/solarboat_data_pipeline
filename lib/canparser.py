@@ -187,7 +187,9 @@ def apply_and_expand(
     return pd.DataFrame.from_dict(processed_messages)  # type: ignore
 
 
-def process_chunk(s: pd.Series, p: str, flags, dataset_info: dict) -> pd.DataFrame:
+def process_chunk(
+    s: pd.Series, p: str, flags, dataset_info: dict, mab20_workaround: bool = False
+) -> pd.DataFrame:
     # Apply ReGex
     df: pd.DataFrame = s.str.extractall(p, flags=flags)
 
@@ -196,7 +198,11 @@ def process_chunk(s: pd.Series, p: str, flags, dataset_info: dict) -> pd.DataFra
     )
 
     # Interpret and fix timestamps
-    df["timestamp"] = pd.to_datetime(df["timestamp"], unit="s") + dataset_info["offset"]
+    df["timestamp"] = pd.to_datetime(df["timestamp"], unit="s")
+    print(
+        f'Applying offset of {dataset_info["offset"]}. Going from {df["timestamp"].iloc[0]} to {df["timestamp"].iloc[0] + dataset_info["offset"]}'
+    )
+    df["timestamp"] += dataset_info["offset"]
 
     # The first and the last timestamps are always correct,
     # but there is some intermediate that is wrong, so we remove them
@@ -215,7 +221,7 @@ def process_chunk(s: pd.Series, p: str, flags, dataset_info: dict) -> pd.DataFra
     # Processing pipeline
     groups = ["unit", "byte_name", "topic_name", "module_name"]
     df = (
-        apply_and_expand(df=df, f=process_message, schema=schema)  # type: ignore
+        apply_and_expand(df=df, f=process_message, mab20_workaround=mab20_workaround)  # type: ignore
         # Same as pivot(), but a little faster:
         .groupby(
             by=[*groups, "timestamp"],
@@ -259,6 +265,7 @@ def process_candump_file(
     chunksize: int,
     output_file_format: str = ".hdf5",
     verbose=False,
+    mab20_workaround: bool = False,
 ) -> dict:
     time_start = timer()
 
@@ -315,6 +322,7 @@ def process_candump_file(
             regex_pattern,
             regex_flags,
             dataset_info,
+            mab20_workaround,
         )
 
         if verbose:
@@ -359,10 +367,13 @@ def process_candump_file(
 def dataset_processor(
     dataset_info: dict,
     chunksize: int,
+    mab20_workaround: bool = False,
 ) -> None:
     print("Processing file:", dataset_info["input_filename"])
 
-    report = process_candump_file(dataset_info, chunksize)
+    report = process_candump_file(
+        dataset_info, chunksize, mab20_workaround=mab20_workaround
+    )
 
     report_str = [
         "-" * 80 + "\n",
@@ -382,7 +393,11 @@ def dataset_processor(
 
 
 def process_dataset(
-    dataset_info_list: List[dict], _schema: dict, chunksize: int, parallel: bool
+    dataset_info_list: List[dict],
+    _schema: dict,
+    chunksize: int,
+    parallel: bool,
+    mab20_workaround: bool = False,
 ) -> None:
     global schema
     schema = _schema
@@ -392,10 +407,12 @@ def process_dataset(
     for dataset_info in dataset_info_list:
         if parallel:
             returns += [
-                p.apply_async(dataset_processor, args=(dataset_info, chunksize))
+                p.apply_async(
+                    dataset_processor, args=(dataset_info, chunksize, mab20_workaround)
+                )
             ]
         else:
-            dataset_processor(dataset_info, chunksize)
+            dataset_processor(dataset_info, chunksize, mab20_workaround)
     for x in returns:
         x.get()
 
