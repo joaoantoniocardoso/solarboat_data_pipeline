@@ -68,9 +68,9 @@ def process_candump_file(
 
     df_forecast = df_forecast.reindex(
         index=index,
-        method="ffill",
+        method=None,
         copy=False,
-    )
+    ).interpolate(method="linear")
     df_forecast["timestamp"] = df_forecast.index
     df_forecast = vaex.from_pandas(df_forecast.reset_index(drop=True))
 
