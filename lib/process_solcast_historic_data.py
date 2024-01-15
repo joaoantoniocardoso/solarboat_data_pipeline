@@ -1,7 +1,7 @@
+import numpy as np
 import pandas as pd
-from pytz import timezone
+import pvlib
 import scipy as sp
-from pvlib import irradiance, location
 
 
 def integrate(df, time_constant):
@@ -71,7 +71,9 @@ def get_irradiance(
     return pd.DataFrame({"POA": poa_components["poa_global"]})
 
 
-def process(input_file: str, output_file: str, site: location.Location, event: dict):
+def process(
+    input_file: str, output_file: str, site: pvlib.location.Location, event: dict
+):
     df = pd.read_csv(
         input_file,
         index_col="PeriodStart",

@@ -2,17 +2,16 @@
 # coding: utf-8
 
 
-import multiprocessing
-from pandas import Timestamp
 from glob import glob
 
-import lib.canparser as canparser
-import lib.resampler as resampler
-import lib.unify_parsed_candump as unify_parsed_candump
-import lib.unifier_with_forecast_data as unifier_with_forecast_data
-import lib.process_solcast_historic_data as process_solcast_historic_data
-
+from pandas import Timestamp
 from pvlib import location
+
+import lib.canparser as canparser
+import lib.process_solcast_historic_data as process_solcast_historic_data
+import lib.resampler as resampler
+import lib.unifier_with_forecast_data as unifier_with_forecast_data
+import lib.unify_parsed_candump as unify_parsed_candump
 
 
 def parse():

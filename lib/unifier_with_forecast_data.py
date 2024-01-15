@@ -1,11 +1,11 @@
+import multiprocessing
 import os
 from timeit import default_timer as timer
-import multiprocessing
-from typing import Optional, List
-import numpy as np
+from typing import Optional
+
 import pandas as pd
-import vaex
 import pytz
+import vaex
 
 
 def process_candump_file(
