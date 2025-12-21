@@ -21,15 +21,25 @@ def parse():
     schema = canparser.CanTopicParser.generate_parsers(schema)
 
     datasets = [
-        # { 'input_filename': 'candump-2020-01-29_111700.log', },
-        # { 'input_filename': 'candump-2020-01-29_114446.log', },
-        # { 'input_filename': 'candump-2020-01-29_154348.log', },
-        # { 'input_filename': 'candump-2020-01-30_054740.log', },
-        # { 'input_filename': 'candump-2020-01-30_171953.log', },
-        # { 'input_filename': 'candump-2020-01-30_171958.log', },
-        # { 'input_filename': 'candump-2020-01-30_171959.log', },
-        # { 'input_filename': 'candump-2020-02-01_002021.log', },
-        # { 'input_filename': 'candump-2020-02-01_064221.log', },
+        { 'input_filename': 'candump-2019-08-14_173441.log', },
+        { 'input_filename': 'candump-2019-08-14_201210.log', },
+        { 'input_filename': 'candump-2019-08-14_201641.log', },
+        { 'input_filename': 'candump-2019-09-06_164805.log', },
+        { 'input_filename': 'candump-2019-09-20_124423.log', },
+        { 'input_filename': 'candump-2019-09-20_132408.log', },
+        { 'input_filename': 'candump-2020-01-14_224047.log', },
+        { 'input_filename': 'candump-2020-01-25_171104.log', },
+        { 'input_filename': 'candump-2020-01-25_192039.log', },
+        { 'input_filename': 'candump-2020-01-27_040133.log', },
+        { 'input_filename': 'candump-2020-01-29_111700.log', },
+        { 'input_filename': 'candump-2020-01-29_114446.log', },
+        { 'input_filename': 'candump-2020-01-29_154348.log', },
+        { 'input_filename': 'candump-2020-01-30_054740.log', },
+        { 'input_filename': 'candump-2020-01-30_171953.log', },
+        { 'input_filename': 'candump-2020-01-30_171958.log', },
+        { 'input_filename': 'candump-2020-01-30_171959.log', },
+        { 'input_filename': 'candump-2020-02-01_002021.log', },
+        { 'input_filename': 'candump-2020-02-01_064221.log', },
         {
             "input_filename": "candump-2020-01-29_115602.log",
             "description": "Prova 1, Curta do dia 2020-01-29 13:51:59-03:00",
@@ -138,7 +148,7 @@ def resample():
         #         '1ms',  # More than 25 GB... Skipping it
         # "10ms",
         "100ms",
-        "1s",
+        # "1s",
         # "10s",
         # "1min",
         # "5min",
@@ -184,7 +194,7 @@ def unify_forecast():
         # '1ms',  # More than 25 GB... Skipping it
         # '10ms',
         "100ms",
-        "1s",
+        # "1s",
         # "10s",
         # "1m",
         # "5m",
@@ -208,6 +218,6 @@ def unify_forecast():
 
 if __name__ == "__main__":
     parse()
-    unify()
-    resample()
-    unify_forecast()
+    # unify()
+    # resample()
+    # unify_forecast()

@@ -63,7 +63,8 @@ def process_chunk(
     resample_period_in_seconds = (
         pd.to_timedelta(dataset_info["resample_period"]).to_numpy().astype(float) * 1e-9
     )
-    sample_limit = int(max([1, 60 / resample_period_in_seconds]))
+    max_resample_time_in_seconds = 1 # 60
+    sample_limit = int(max([1, max_resample_time_in_seconds / resample_period_in_seconds]))
 
     # start_timestamp = str(
     #    pd.Timestamp(
@@ -96,8 +97,8 @@ def process_chunk(
 
     return (
         df.resample(dataset_info["resample_period"])
-        .mean()
-        .interpolate(method="time", limit_area="inside", limit=sample_limit)
+        .first()
+        # .interpolate(method="time", limit_area="inside", limit=sample_limit)
     )  # type: ignore
 
 
@@ -148,7 +149,7 @@ def process_candump_file(
             print(df.info(verbose=True, memory_usage="deep"))
 
         # Save the processed chunk to file
-        vaex.from_pandas(df.reset_index()).export(output_file)
+        vaex.from_pandas(df.reset_index()).export_hdf5(output_file)
 
         chunk_time_end = timer()
         chunk_time_elapsed = chunk_time_end - chunk_time_start
