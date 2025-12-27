@@ -82,8 +82,8 @@ def parse():
 
     dataset_info_list = canparser.Datasets(
         datasets=datasets,
-        input_path="/home/joaoantoniocardoso/workspace_TCC/repo/code/data/candump",
-        output_path="/home/joaoantoniocardoso/workspace_TCC/repo/code/data/parsed/sparse",
+        input_path="../data/candump",
+        output_path="../data/parsed/sparse",
     ).as_list()
 
     chunksize = 1_000_000
@@ -98,7 +98,7 @@ def parse():
 
 def unify():
     input_file_list = []
-    input_path = "/home/joaoantoniocardoso/workspace_TCC/repo/code/data/parsed/sparse/"
+    input_path = "../data/parsed/sparse/"
     input_file_list += sorted(
         glob(input_path + "candump-2020-01-29_115602.log_chunk_*.hdf5")
     )
@@ -147,8 +147,8 @@ def resample():
     resample_periods = [
         #         '1ms',  # More than 25 GB... Skipping it
         # "10ms",
-        "100ms",
-        # "1s",
+        # "100ms",
+        "1s",
         # "10s",
         # "1min",
         # "5min",
@@ -157,8 +157,8 @@ def resample():
     for resample_period in resample_periods:
         dataset_info_list = resampler.Datasets(
             datasets=datasets,
-            input_path="/home/joaoantoniocardoso/workspace_TCC/repo/code/data/parsed/sparse",
-            output_path="/home/joaoantoniocardoso/workspace_TCC/repo/code/data/parsed",
+            input_path="../data/parsed/sparse",
+            output_path="../data/parsed",
             outliers_percentile=0.01,
             resample_period=resample_period,
         ).as_list()
@@ -172,8 +172,8 @@ def resample():
 
 
 def unify_forecast():
-    solcast_dat_in = "/home/joaoantoniocardoso/workspace_TCC/repo/code/models/Competition/datasets/-26.243602_-48.6417668_Solcast_PT5M.csv"
-    solcast_data_out = "/home/joaoantoniocardoso/workspace_TCC/repo/code/models/Competition/datasets/nonideal_solar_dataset.csv"
+    solcast_dat_in = "../data/solcast/-26.243602_-48.6417668_Solcast_PT5M.csv"
+    solcast_data_out = "../data/solcast/nonideal_solar_dataset.csv"
     site = location.Location(
         latitude=-26.243602,
         longitude=-48.6417668,
@@ -193,8 +193,8 @@ def unify_forecast():
     periods = [
         # '1ms',  # More than 25 GB... Skipping it
         # '10ms',
-        "100ms",
-        # "1s",
+        # "100ms",
+        "1s",
         # "10s",
         # "1m",
         # "5m",
@@ -203,8 +203,8 @@ def unify_forecast():
     for period in periods:
         dataset_info_list = {
             "telemetry_filename": "candump-*.log_combined_chunk_*.hdf5",
-            "telemetry_path": "/home/joaoantoniocardoso/workspace_TCC/repo/code/data/parsed",
-            "output_path": "/home/joaoantoniocardoso/workspace_TCC/repo/code/data/final",
+            "telemetry_path": "../data/parsed",
+            "output_path": "../data/final",
             "forecast_file": solcast_data_out,
             "period": period,
             "shift_back_localize": True,
@@ -218,6 +218,6 @@ def unify_forecast():
 
 if __name__ == "__main__":
     parse()
-    # unify()
-    # resample()
-    # unify_forecast()
+    unify()
+    resample()
+    unify_forecast()
