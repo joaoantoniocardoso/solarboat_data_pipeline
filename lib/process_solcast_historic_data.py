@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import pandas as pd
 import pvlib
@@ -8,12 +9,19 @@ def integrate(df, time_constant):
     """
     Integrates a datetime indexed dataframe relative to a time_constant (3600 to return in hours)
     """
-    if df.index.freq is None:
-        df.index.freq = pd.infer_freq(df.index)
+    freq = df.index.freq or pd.infer_freq(df.index)
+    if freq is None:
+        raise ValueError("Could not infer frequency from index")
+
+    dx = pd.to_timedelta(freq).total_seconds() / time_constant
+    cumtrapz = getattr(sp.integrate, "cumtrapz", None)
+    if cumtrapz is None:
+        cumtrapz = sp.integrate.cumulative_trapezoid
+
     return df.apply(
-        sp.integrate.cumtrapz,
+        cumtrapz,
         initial=0,
-        dx=((df.index.freq.nanos * 1e-9) / time_constant),  # type: ignore
+        dx=dx,
     )
 
 
@@ -89,8 +97,7 @@ def process(
         },
         inplace=True,
     )
-    df.index = pd.to_datetime(df.index).tz_convert(site.tz)
-    df.index.freq = pd.infer_freq(df.index)  # type: ignore
+    df.index = pd.DatetimeIndex(pd.to_datetime(df.index)).tz_convert(site.tz)
 
     df["poa"] = get_irradiance(
         site_location=site,
@@ -103,4 +110,5 @@ def process(
 
     df["energy"] = integrate(df, 3600)["poa"]
 
+    os.makedirs(os.path.dirname(output_file) or ".", exist_ok=True)
     df.to_csv(output_file)
