@@ -1,12 +1,13 @@
-import sys
 import os
 from timeit import default_timer as timer
 import multiprocessing
-from typing import Optional, Callable, List
+import re
+from typing import Optional, Callable, List, Dict, Any, cast
 import numpy as np
 import pandas as pd
-import vaex
-import pytz
+import importlib
+
+vaex = importlib.import_module("vaex")
 
 
 class Datasets:
@@ -24,10 +25,6 @@ class Datasets:
         self.datasets = datasets
 
         for d in self.datasets:
-            if "from" in d and "to" in d:
-                d["offset"] = d["to"] - d["from"]
-            else:
-                d["offset"] = pd.Timedelta("0")
             d["input_path"] = input_path
             d["output_path"] = output_path
             d["resample_period"] = resample_period
@@ -41,7 +38,7 @@ def fix_data_outliers_limits(
     df: pd.DataFrame, upper: float, lower: float
 ) -> pd.DataFrame:
     outliers = (df < lower) | (df > upper)
-    df[outliers] = np.NaN
+    df[outliers] = np.nan
     df.interpolate(method="time", limit_area="inside")
     return df
 
@@ -56,50 +53,161 @@ def fix_data_outliers_iqr(df: pd.DataFrame, percentile: float) -> pd.DataFrame:
     return df
 
 
+def _compile_rules(rules: Any) -> List[Dict[str, Any]]:
+    if not rules:
+        return []
+    if isinstance(rules, dict):
+        rules = [rules]
+    compiled = []
+    for rule in rules:
+        compiled.append({**rule, "_re": re.compile(rule["pattern"])})
+    return compiled
+
+
+def _match_rule(
+    name: str, compiled_rules: List[Dict[str, Any]], key: str
+) -> Optional[str]:
+    for rule in compiled_rules:
+        if rule["_re"].search(name):
+            return rule.get(key)
+    return None
+
+
 def process_chunk(
     df: pd.DataFrame,
     dataset_info: dict,
 ) -> pd.DataFrame:
-    resample_period_in_seconds = (
-        pd.to_timedelta(dataset_info["resample_period"]).to_numpy().astype(float) * 1e-9
-    )
-    max_resample_time_in_seconds = 1 # 60
-    sample_limit = int(max([1, max_resample_time_in_seconds / resample_period_in_seconds]))
+    period = dataset_info["resample_period"]
+    default_agg = dataset_info.get("resample_agg", "first")
+    default_fill_method = dataset_info.get("fill_method", "ffill")
 
-    # start_timestamp = str(
-    #    pd.Timestamp(
-    #        df
-    #        .head(1)
-    #        .index
-    #        .to_numpy()[0]
-    #    )
-    #    .round(dataset_info['resample_period'])
-    # )
-    # end_timestamp = str(
-    #    pd.Timestamp(
-    #        df
-    #        .tail(1)
-    #        .index.to_numpy()[0]
-    #    )
-    #    .round(dataset_info['resample_period'])
-    # )
-    # index = pd.DatetimeIndex(
-    #    pd.date_range(
-    #        start=start_timestamp,
-    #        end=end_timestamp,
-    #        freq=dataset_info['resample_period']
-    #    )
-    # )
-    # fix_data_outliers_iqr(
-    #    df=df,
-    #    percentile=dataset_info['outliers_percentile'],
-    # )
+    agg_rules = _compile_rules(dataset_info.get("resample_agg_rules"))
+    fill_rules = _compile_rules(dataset_info.get("fill_method_rules"))
 
-    return (
-        df.resample(dataset_info["resample_period"])
-        .first()
-        # .interpolate(method="time", limit_area="inside", limit=sample_limit)
-    )  # type: ignore
+    r = df.resample(period)
+
+    if agg_rules:
+        agg_map = {}
+        for col in df.columns:
+            col_agg = _match_rule(col, agg_rules, "agg") or default_agg
+            agg_map[col] = col_agg
+        df_resampled = r.agg(agg_map)
+    else:
+        if default_agg == "first":
+            df_resampled = r.first()
+        elif default_agg == "last":
+            df_resampled = r.last()
+        elif default_agg == "mean":
+            df_resampled = r.mean()
+        elif default_agg == "median":
+            df_resampled = r.median()
+        else:
+            raise ValueError(f"Unsupported resample_agg: {default_agg}")
+
+    fill_limit_seconds = float(dataset_info.get("fill_limit_seconds", 1.0))
+    period_seconds = float(pd.to_timedelta(period).total_seconds())
+    fill_limit = int(max(0, fill_limit_seconds / period_seconds))
+
+    df_out = df_resampled  # type: ignore
+
+    if fill_limit > 0:
+        if not fill_rules and default_fill_method:
+            if default_fill_method == "ffill":
+                df_out = df_out.ffill(limit=fill_limit)
+            elif default_fill_method == "interpolate":
+                df_out = df_out.interpolate(
+                    method="time",
+                    limit_area="inside",
+                    limit=fill_limit,
+                )
+            else:
+                raise ValueError(f"Unsupported fill_method: {default_fill_method}")
+        else:
+            df_ffill = df_out.ffill(limit=fill_limit)
+            df_interp = df_out.interpolate(
+                method="time",
+                limit_area="inside",
+                limit=fill_limit,
+            )
+
+            cols_ffill = []
+            cols_interp = []
+            for col in df_out.columns:
+                method = _match_rule(col, fill_rules, "method") or default_fill_method
+                if method == "interpolate":
+                    cols_interp.append(col)
+                elif method == "ffill":
+                    cols_ffill.append(col)
+                elif not method:
+                    pass
+                else:
+                    raise ValueError(f"Unsupported fill_method: {method}")
+
+            df_out = df_out.copy()
+            if cols_ffill:
+                df_out[cols_ffill] = df_ffill[cols_ffill]
+            if cols_interp:
+                df_out[cols_interp] = df_interp[cols_interp]
+
+    filtfilt_rules = dataset_info.get("filtfilt_rules")
+
+    if filtfilt_rules:
+        signal = importlib.import_module("scipy.signal")
+        fs_hz = 1.0 / period_seconds
+
+        for rule in filtfilt_rules:
+            patterns = rule.get("patterns", [])
+            if isinstance(patterns, str):
+                patterns = [patterns]
+            compiled = [re.compile(p) for p in patterns]
+
+            cutoff_hz = float(rule.get("cutoff_hz", 0.0))
+            if cutoff_hz <= 0:
+                continue
+
+            order = int(rule.get("order", 2))
+            clip_min = rule.get("clip_min")
+
+            max_cutoff_hz = 0.45 * fs_hz
+            effective_cutoff_hz = min(cutoff_hz, max_cutoff_hz)
+            wn = effective_cutoff_hz / (0.5 * fs_hz)
+            if not (wn > 0):
+                continue
+
+            b, a = signal.butter(order, min(wn, 0.999), btype="low")
+
+            cols = [c for c in df_out.columns if any(r.search(c) for r in compiled)]
+            if not cols:
+                continue
+
+            df_out = df_out.copy()
+            for col in cols:
+                s = pd.Series(
+                    pd.to_numeric(df_out[col], errors="coerce"), index=df_out.index
+                )
+
+                if fill_limit > 0:
+                    s = s.interpolate(  # type: ignore
+                        method="time", limit_area="inside", limit=fill_limit
+                    )
+                else:
+                    s = s.interpolate(method="time", limit_area="inside")  # type: ignore
+                s = s.ffill().bfill()
+
+                x = s.to_numpy(dtype=float)
+                if x.size < 4:
+                    continue
+
+                default_padlen = 3 * (max(len(a), len(b)) - 1)
+                padlen = int(min(default_padlen, x.size - 1))
+                y = signal.filtfilt(b, a, x, padlen=padlen)
+
+                if clip_min is not None:
+                    y = np.maximum(y, float(clip_min))
+
+                df_out[col] = y
+
+    return df_out  # type: ignore
 
 
 def process_candump_file(
@@ -132,6 +240,7 @@ def process_candump_file(
             + "/"
             + output_filename
         )
+        os.makedirs(os.path.dirname(output_file) or ".", exist_ok=True)
         if verbose:
             print("output file:    ", output_file)
         if os.path.isfile(output_file):

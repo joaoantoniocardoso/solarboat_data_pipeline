@@ -5,7 +5,9 @@
 from glob import glob
 
 from pandas import Timestamp
-from pvlib import location
+import importlib
+
+location = importlib.import_module("pvlib.location")
 
 import lib.canparser as canparser
 import lib.process_solcast_historic_data as process_solcast_historic_data
@@ -21,54 +23,92 @@ def parse():
     schema = canparser.CanTopicParser.generate_parsers(schema)
 
     datasets = [
-        { 'input_filename': 'candump-2019-08-14_173441.log', },
-        { 'input_filename': 'candump-2019-08-14_201210.log', },
-        { 'input_filename': 'candump-2019-08-14_201641.log', },
-        { 'input_filename': 'candump-2019-09-06_164805.log', },
-        { 'input_filename': 'candump-2019-09-20_124423.log', },
-        { 'input_filename': 'candump-2019-09-20_132408.log', },
-        { 'input_filename': 'candump-2020-01-14_224047.log', },
-        { 'input_filename': 'candump-2020-01-25_171104.log', },
-        { 'input_filename': 'candump-2020-01-25_192039.log', },
-        { 'input_filename': 'candump-2020-01-27_040133.log', },
-        { 'input_filename': 'candump-2020-01-29_111700.log', },
-        { 'input_filename': 'candump-2020-01-29_114446.log', },
-        { 'input_filename': 'candump-2020-01-29_154348.log', },
-        { 'input_filename': 'candump-2020-01-30_054740.log', },
-        { 'input_filename': 'candump-2020-01-30_171953.log', },
-        { 'input_filename': 'candump-2020-01-30_171958.log', },
-        { 'input_filename': 'candump-2020-01-30_171959.log', },
-        { 'input_filename': 'candump-2020-02-01_002021.log', },
-        { 'input_filename': 'candump-2020-02-01_064221.log', },
+        {
+            "input_filename": "candump-2019-08-14_173441.log",
+        },
+        {
+            "input_filename": "candump-2019-08-14_201210.log",
+        },
+        {
+            "input_filename": "candump-2019-08-14_201641.log",
+        },
+        {
+            "input_filename": "candump-2019-09-06_164805.log",
+        },
+        {
+            "input_filename": "candump-2019-09-20_124423.log",
+        },
+        {
+            "input_filename": "candump-2019-09-20_132408.log",
+        },
+        {
+            "input_filename": "candump-2020-01-14_224047.log",
+        },
+        {
+            "input_filename": "candump-2020-01-25_171104.log",
+        },
+        {
+            "input_filename": "candump-2020-01-25_192039.log",
+        },
+        {
+            "input_filename": "candump-2020-01-27_040133.log",
+        },
+        {
+            "input_filename": "candump-2020-01-29_111700.log",
+        },
+        {
+            "input_filename": "candump-2020-01-29_114446.log",
+        },
+        {
+            "input_filename": "candump-2020-01-29_154348.log",
+        },
+        {
+            "input_filename": "candump-2020-01-30_054740.log",
+        },
+        {
+            "input_filename": "candump-2020-01-30_171953.log",
+        },
+        {
+            "input_filename": "candump-2020-01-30_171958.log",
+        },
+        {
+            "input_filename": "candump-2020-01-30_171959.log",
+        },
+        {
+            "input_filename": "candump-2020-02-01_002021.log",
+        },
+        {
+            "input_filename": "candump-2020-02-01_064221.log",
+        },
         {
             "input_filename": "candump-2020-01-29_115602.log",
             "description": "Prova 1, Curta do dia 2020-01-29 13:51:59-03:00",
-            "from": Timestamp("2020-01-29 16:51:08.332"),
-            "to": Timestamp("2020-01-29 13:51:59"),
+            "from": Timestamp("2020-01-29 16:51:08.332", tz="UTC"),
+            "to": Timestamp("2020-01-29 13:51:59", tz="America/Sao_Paulo"),
         },
         {
             "input_filename": "candump-2020-01-30_054738.log",
             "description": "Prova 2, Longa do dia 2020-01-30 11:16:45-03:00, dados incompletos (deveria ter 03:38:45)",
-            "from": Timestamp("2020-01-30 10:02:30.771666"),
-            "to": Timestamp("2020-01-30 11:16:45"),
+            "from": Timestamp("2020-01-30 10:02:30.771666", tz="UTC"),
+            "to": Timestamp("2020-01-30 11:16:45", tz="America/Sao_Paulo"),
         },
         {
             "input_filename": "candump-2020-01-30_172000.log",
             "description": "Prova 3, Revezamento do dia 2020-01-31 11:23:23",
-            "from": Timestamp("2020-01-30 23:33:04.398823"),
-            "to": Timestamp("2020-01-31 13:50:06.009"),
+            "from": Timestamp("2020-01-30 23:33:04.398823", tz="UTC"),
+            "to": Timestamp("2020-01-31 13:50:06.009", tz="America/Sao_Paulo"),
         },
         {
             "input_filename": "candump-2020-02-01_064223.log",
             "description": "Prova 5, Curta do dia 2020-02-01 13:15:09-03:00",
-            "from": Timestamp("2020-02-01 09:51:05.881792"),
-            "to": Timestamp("2020-02-01 13:15:57.592"),
+            "from": Timestamp("2020-02-01 09:51:05.881792", tz="UTC"),
+            "to": Timestamp("2020-02-01 13:15:57.592", tz="America/Sao_Paulo"),
         },
         {
             "input_filename": "candump-2020-02-01_064222.log",
             "description": "Prova 6, Slalom, e 7, Sprint",
-            "from": Timestamp("2020-02-01 11:47:39.382578"),
-            "to": Timestamp("2020-02-02 10:05:41.987"),
+            "from": Timestamp("2020-02-01 11:47:39.382578", tz="UTC"),
+            "to": Timestamp("2020-02-02 10:05:41.987", tz="America/Sao_Paulo"),
         },
         {
             "input_filename": "candump-from_db0.log",
@@ -117,7 +157,7 @@ def unify():
 
     file_ref = input_path + "candump-from_db*.log_chunk_*.hdf5"
 
-    unify_parsed_candump.process_dataset(input_file_list, file_ref)
+    unify_parsed_candump.process_dataset(input_file_list, file_ref, parallel=True)
 
 
 def resample():
@@ -145,13 +185,28 @@ def resample():
     ]
 
     resample_periods = [
-        #         '1ms',  # More than 25 GB... Skipping it
-        # "10ms",
-        # "100ms",
+        "50ms",
+        "100ms",
         "1s",
-        # "10s",
-        # "1min",
-        # "5min",
+        "10s",
+    ]
+
+    resample_agg_rules = [
+        {"pattern": r"__STATE__", "agg": "last"},
+        {"pattern": r"(?:^|__)ON(?:__|$)", "agg": "last"},
+        {"pattern": r"MOTOR__MOTOR", "agg": "last"},
+        {"pattern": r"__D$", "agg": "mean"},
+        {"pattern": r"ADC__AVG$", "agg": "mean"},
+        {"pattern": r"BAT__AVG$", "agg": "mean"},
+        {"pattern": r"CAP__AVG$", "agg": "mean"},
+        {"pattern": r"RPM__AVG$", "agg": "mean"},
+    ]
+
+    fill_method_rules = [
+        {"pattern": r"__STATE__", "method": "ffill"},
+        {"pattern": r"(?:^|__)ON(?:__|$)", "method": "ffill"},
+        {"pattern": r"MOTOR__MOTOR", "method": "ffill"},
+        {"pattern": r"__D$", "method": "ffill"},
     ]
 
     for resample_period in resample_periods:
@@ -163,6 +218,36 @@ def resample():
             resample_period=resample_period,
         ).as_list()
 
+        if resample_period == "50ms":
+            fill_limit_seconds = 0.25
+        elif resample_period == "100ms":
+            fill_limit_seconds = 0.5
+        else:
+            fill_limit_seconds = 2.0
+
+        for d in dataset_info_list:
+            d["resample_agg"] = "mean"
+            d["fill_method"] = "interpolate"
+            d["fill_limit_seconds"] = fill_limit_seconds
+            d["resample_agg_rules"] = resample_agg_rules
+            d["fill_method_rules"] = fill_method_rules
+            d["filtfilt_rules"] = [
+                {
+                    "patterns": [r"RPM__AVG$"],
+                    "cutoff_hz": 0.4,
+                    "order": 2,
+                    "clip_min": 0.0,
+                },
+                {
+                    "patterns": [
+                        r"^MCC19_.*__MEASUREMENTS__",
+                        r"^MCB19_.*__MEASUREMENTS__",
+                    ],
+                    "cutoff_hz": 1.0,
+                    "order": 2,
+                },
+            ]
+
         chunksize = 1_000_000
         resampler.process_dataset(
             dataset_info_list,
@@ -172,12 +257,14 @@ def resample():
 
 
 def unify_forecast():
+    timezone = "America/Sao_Paulo"
+
     solcast_dat_in = "../data/solcast/-26.243602_-48.6417668_Solcast_PT5M.csv"
     solcast_data_out = "../data/solcast/nonideal_solar_dataset.csv"
     site = location.Location(
         latitude=-26.243602,
         longitude=-48.6417668,
-        tz="America/Sao_Paulo",
+        tz=timezone,
         altitude=0,
         name="São Francisco do Sul",
     )
@@ -191,13 +278,10 @@ def unify_forecast():
     process_solcast_historic_data.process(solcast_dat_in, solcast_data_out, site, event)
 
     periods = [
-        # '1ms',  # More than 25 GB... Skipping it
-        # '10ms',
-        # "100ms",
+        "100ms",
+        "50ms",
         "1s",
-        # "10s",
-        # "1m",
-        # "5m",
+        "10s",
     ]
 
     for period in periods:
@@ -207,17 +291,17 @@ def unify_forecast():
             "output_path": "../data/final",
             "forecast_file": solcast_data_out,
             "period": period,
-            "shift_back_localize": True,
+            "timezone": timezone,
         }
 
         unifier_with_forecast_data.process_dataset(
             dataset_info_list,
-            parallel=False,
+            parallel=True,
         )
 
 
 if __name__ == "__main__":
-    parse()
-    unify()
-    resample()
+    # parse()
+    # unify()
+    # resample()
     unify_forecast()
