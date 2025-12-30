@@ -3,10 +3,13 @@ from timeit import default_timer as timer
 import multiprocessing
 import re
 import json
-from typing import Optional, Callable, List
+from typing import Optional, Callable, List, Any, Dict
 import numpy as np
 import pandas as pd
-import vaex
+import pytz
+import importlib
+
+vaex = importlib.import_module("vaex")
 
 from lib.canparser_generator import CanTopicParser
 
@@ -52,7 +55,11 @@ class CanIds:
 
 class Datasets:
     def __init__(
-        self, datasets: list, input_path: str, output_path: Optional[str] = None
+        self,
+        datasets: list,
+        input_path: str,
+        output_path: Optional[str] = None,
+        timezone: str = "America/Sao_Paulo",
     ):
         if output_path is None:
             output_path = input_path
@@ -60,10 +67,28 @@ class Datasets:
         self.datasets = datasets
 
         for d in self.datasets:
-            if "from" in d and "to" in d:
-                d["offset"] = d["to"] - d["from"]
-            else:
-                d["offset"] = pd.Timedelta("0")
+            d["timezone"] = d.get("timezone", timezone)
+            tzinfo = pytz.timezone(d["timezone"])
+
+            if "timestamp_offset" not in d and "from" in d and "to" in d:
+                from_ts = pd.Timestamp(d["from"])
+                to_ts = pd.Timestamp(d["to"])
+
+                if from_ts.tzinfo is None:
+                    from_ts = from_ts.tz_localize(tzinfo)
+                else:
+                    from_ts = from_ts.tz_convert(tzinfo)
+
+                if to_ts.tzinfo is None:
+                    to_ts = to_ts.tz_localize(tzinfo)
+                else:
+                    to_ts = to_ts.tz_convert(tzinfo)
+
+                d["timestamp_offset"] = to_ts.tz_convert(pytz.UTC) - from_ts.tz_convert(
+                    pytz.UTC
+                )
+
+            d["timestamp_offset"] = d.get("timestamp_offset", pd.Timedelta("0"))
             d["input_path"] = input_path
             d["output_path"] = output_path
 
@@ -172,19 +197,16 @@ def process_message(
 
 
 def apply_and_expand(
-    df: pd.DataFrame, f: Callable[[pd.DataFrame], pd.DataFrame], **kwargs
+    df: pd.DataFrame, f: Callable[..., Optional[List[Dict[str, Any]]]], **kwargs
 ) -> pd.DataFrame:
-    """Apply a function 'f' that returns multiple rows to 'df'.
-    A reindexed DataFrame will be returned with all new rows."""
-
-    processed_messages = []
+    processed_messages: List[Dict[str, Any]] = []
     for message in df.to_dict("records"):
-        processed_message = f(message, **kwargs)  # type: ignore
+        processed_message = f(message, **kwargs)
         if not processed_message:
             continue
-        processed_messages += processed_message
+        processed_messages.extend(processed_message)
 
-    return pd.DataFrame.from_dict(processed_messages)  # type: ignore
+    return pd.DataFrame.from_records(processed_messages)
 
 
 def process_chunk(
@@ -194,15 +216,15 @@ def process_chunk(
     df: pd.DataFrame = s.str.extractall(p, flags=flags)
 
     print(
-        f'{dataset_info["input_filename"]}. Length before extract: {len(s)}.\tLength after extract: {len(df)}.'
+        f"{dataset_info['input_filename']}. Length before extract: {len(s)}.\tLength after extract: {len(df)}."
     )
 
-    # Interpret and fix timestamps
-    df["timestamp"] = pd.to_datetime(df["timestamp"], unit="s")
-    print(
-        f'Applying offset of {dataset_info["offset"]}. Going from {df["timestamp"].iloc[0]} to {df["timestamp"].iloc[0] + dataset_info["offset"]}'
-    )
-    df["timestamp"] += dataset_info["offset"]
+    tzinfo = pytz.timezone(dataset_info["timezone"])
+    df["timestamp"] = pd.to_numeric(df["timestamp"], errors="coerce")
+    df = df.dropna(subset=["timestamp"])
+    df["timestamp"] = pd.to_datetime(df["timestamp"], unit="s", utc=True)
+    df["timestamp"] = df["timestamp"] + dataset_info["timestamp_offset"]
+    df["timestamp"] = df["timestamp"].dt.tz_convert(tzinfo).dt.tz_localize(None)
 
     # The first and the last timestamps are always correct,
     # but there is some intermediate that is wrong, so we remove them
@@ -230,8 +252,7 @@ def process_chunk(
         .mean()
         .unstack(groups[::-1])  # type: ignore
         .rename_axis("timestamp")
-        # Downcast
-        .astype(np.float16)
+        .astype(np.float32)
     )
 
     # Rename columns, going from multi-index to simple index
@@ -241,9 +262,7 @@ def process_chunk(
     return df
 
 
-def clean_timestamp_outliers(
-    df: vaex.dataframe.DataFrameLocal,  # type: ignore
-) -> vaex.dataframe.DataFrameLocal:  # type: ignore
+def clean_timestamp_outliers(df: Any) -> Any:
     s = int(1e4)
     timestamp_diff = np.hstack(
         [
@@ -298,6 +317,8 @@ def process_candump_file(
         on_bad_lines="skip",
     )
     output_filename = ""
+
+    os.makedirs(dataset_info["output_path"], exist_ok=True)
 
     total_input_lines = 0
     total_output_lines = 0

@@ -2,12 +2,13 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from pytz import timezone
-import vaex
+import importlib
+
+vaex = importlib.import_module("vaex")
+Converter = importlib.import_module("gpx_converter").Converter
 from timeit import default_timer as timer
 from typing import Optional, List
 import os
-
-from gpx_converter import Converter
 
 
 def compute_heading(lat1, lon1, lat2, lon2):
@@ -76,15 +77,21 @@ def process_gps(longitudes: pd.Series, latitudes: pd.Series, timestamps: pd.Seri
 def process_gpx_file(
     input_files,
     output_file,
-    timezone="America/Sao_Paulo",
+    timezone_str="America/Sao_Paulo",
 ):
+    tzinfo = timezone(timezone_str)
+
     df_full = pd.DataFrame()
     for file in input_files:
         df = Converter(input_file=file).gpx_to_dataframe()
 
         df = df.rename(columns={"time": "timestamp"})
 
-        df["timestamp"] = pd.DatetimeIndex(df["timestamp"]).tz_convert(timezone(timezone))  # type: ignore
+        ts = pd.to_datetime(df["timestamp"])
+        if ts.dt.tz is None:
+            ts = ts.dt.tz_localize(timezone("UTC"))
+        ts = ts.dt.tz_convert(tzinfo)
+        df["timestamp"] = ts.dt.tz_localize(None)  # type: ignore
 
         heading, distance, speed = process_gps(
             df["longitude"], df["latitude"], df["timestamp"]
@@ -97,6 +104,7 @@ def process_gpx_file(
 
         df_full = pd.concat([df_full, df])
 
+    os.makedirs(os.path.dirname(output_file) or ".", exist_ok=True)
     df_full.to_csv(output_file)
 
     return df_full
@@ -120,6 +128,7 @@ def process_dataset(
     )
     print(output_filename)
     output_file = dataset_info["output_path"] + "/" + output_filename
+    os.makedirs(os.path.dirname(output_file) or ".", exist_ok=True)
     if verbose:
         print("output file:    ", output_file)
     if os.path.isfile(output_file):
@@ -130,12 +139,15 @@ def process_dataset(
     df_telemetry = vaex.open(telemetry_file).to_pandas_df()
 
     # Localize the timestamp
-    tzinfo = timezone("America/Sao_Paulo")
-    df_telemetry["timestamp"] = pd.to_datetime(df_telemetry["timestamp"])
-    df_telemetry["timestamp"] = df_telemetry["timestamp"].dt.tz_localize(
-        timezone("UTC")
-    )
-    df_telemetry["timestamp"] = df_telemetry["timestamp"].dt.tz_convert(tzinfo)
+    tzinfo = timezone(dataset_info.get("timezone", "America/Sao_Paulo"))
+    ts = pd.to_datetime(df_telemetry["timestamp"])
+
+    if ts.dt.tz is None:
+        ts = ts.dt.tz_localize(tzinfo)
+    else:
+        ts = ts.dt.tz_convert(tzinfo)
+
+    df_telemetry["timestamp"] = ts.dt.tz_localize(None)
     df_telemetry = vaex.from_pandas(df_telemetry)
 
     # Load and proccess GPS Data
@@ -152,15 +164,14 @@ def process_dataset(
     df_gps.index.rename("timestamp", inplace=True)
 
     # Reindex GPS data using the telemetry timestamp as index
-    df_gps.index = df_gps.reset_index()["timestamp"].dt.tz_convert(
-        timezone("America/Sao_Paulo")
-    )  # type: ignore
-    index = pd.DatetimeIndex(
-        df_telemetry["timestamp"].to_numpy(), dtype="datetime64[ns, America/Sao_Paulo]"  # type: ignore
-    )
+    gps_ts = pd.to_datetime(df_gps.reset_index()["timestamp"])
+    if gps_ts.dt.tz is None:
+        gps_ts = gps_ts.dt.tz_localize(timezone("UTC"))
+    gps_ts = gps_ts.dt.tz_convert(tzinfo)
 
-    if dataset_info["shift_back_localize"]:
-        index -= pd.Timedelta(3, unit="H")
+    df_gps.index = gps_ts.dt.tz_localize(None)  # type: ignore
+
+    index = pd.DatetimeIndex(df_telemetry["timestamp"].to_numpy())  # type: ignore
 
     df_gps = df_gps.reindex(
         index=index,

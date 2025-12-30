@@ -10,7 +10,9 @@ import lib.unifier_with_forecast_data as unifier_with_forecast_data
 import lib.process_solcast_historic_data as process_solcast_historic_data
 import lib.process_gpx_data as process_gpx_data
 
-from pvlib import location
+import importlib
+
+location = importlib.import_module("pvlib.location")
 
 
 def parse():
@@ -21,14 +23,14 @@ def parse():
         {
             "input_filename": "candump-2022-03-15_205017.log",
             "description": "Provas 1 e 2 - Match Race - 2022-03-17",
-            "from": Timestamp("2022-03-17 12:22:25.000"),
-            "to": Timestamp("2022-03-17 09:22:31.000"),
+            "from": Timestamp("2022-03-17 12:22:25.000", tz="UTC"),
+            "to": Timestamp("2022-03-17 09:22:31.000", tz="America/Sao_Paulo"),
         },
         {
             "input_filename": "candump-2022-03-18_011750.log",
             "description": "Provas 3 - Prova Longa - 2022-03-18",
-            "from": Timestamp("2022-03-18 14:19:47.000"),
-            "to": Timestamp("2022-03-18 11:19:47.000"),
+            "from": Timestamp("2022-03-18 14:19:47.000", tz="UTC"),
+            "to": Timestamp("2022-03-18 11:19:47.000", tz="America/Sao_Paulo"),
         },
     ]
 
@@ -87,12 +89,14 @@ def resample():
 
 
 def unify_forecast():
+    timezone = "America/Sao_Paulo"
+
     solcast_dat_in = "/home/joaoantoniocardoso/ZeniteSolar/2022/Strategy22/datasets/-22.924247_-43.097405_Solcast_PT5M.csv"
     solcast_data_out = "/home/joaoantoniocardoso/ZeniteSolar/2022/Strategy22/datasets/nonideal_solar_dataset.csv"
     site = location.Location(
         latitude=-22.924247,
         longitude=-43.097405,
-        tz="America/Sao_Paulo",
+        tz=timezone,
         altitude=0,
         name="Niterói",
     )
@@ -123,7 +127,7 @@ def unify_forecast():
             "output_path": "/home/joaoantoniocardoso/ZeniteSolar/2022/Strategy22/datasets/can/final",
             "forecast_file": solcast_data_out,
             "period": period,
-            "shift_back_localize": True,
+            "timezone": timezone,
         }
 
         unifier_with_forecast_data.process_dataset(
@@ -133,6 +137,8 @@ def unify_forecast():
 
 
 def unify_gps():
+    timezone = "America/Sao_Paulo"
+
     path = "/home/joaoantoniocardoso/ZeniteSolar/2022/Strategy22/datasets/strava/"
     gps_files = [
         path + "17_03_2022_Prova_Manh_Classifica_o_Match_Race.gpx",
@@ -142,15 +148,15 @@ def unify_gps():
     ]
     gps_output_file = path + "gps_data.csv"
 
-    process_gpx_data.process_gpx_file(gps_files, gps_output_file, "America/Sao_Paulo")
+    process_gpx_data.process_gpx_file(gps_files, gps_output_file, timezone)
 
     dataset_info_list = {
         "telemetry_filename": "unified_monotonic_data_1s.hdf5",
         "telemetry_path": "/home/joaoantoniocardoso/ZeniteSolar/2022/Strategy22/datasets/can/final",
         "output_path": "/home/joaoantoniocardoso/ZeniteSolar/2022/Strategy22/datasets/can/final",
         "gps_file": gps_output_file,
-        "shift_back_localize": True,
         "period": "1s",
+        "timezone": timezone,
     }
 
     process_gpx_data.process_dataset(dataset_info_list)

@@ -10,7 +10,9 @@ import lib.unifier_with_forecast_data as unifier_with_forecast_data
 import lib.process_solcast_historic_data as process_solcast_historic_data
 import lib.process_gpx_data as process_gpx_data
 
-from pvlib import location
+import importlib
+
+location = importlib.import_module("pvlib.location")
 
 
 def parse():
@@ -21,8 +23,8 @@ def parse():
         {
             "input_filename": "candump-2023-07-02_104810.log",
             "description": "Testes helice médio custom",
-            # "from": Timestamp("2023-07-02 12:00:00.000"),
-            # "to": Timestamp("2023-07-02 12:57:12.000"),
+            # "from": Timestamp("2023-07-02 12:00:00.000", tz="UTC"),
+            # "to": Timestamp("2023-07-02 12:57:12.000", tz="America/Sao_Paulo"),
         },
     ]
 
@@ -92,7 +94,6 @@ def unify_gps():
         "telemetry_path": "/home/joaoantoniocardoso/ZeniteSolar/2023/can_data/01072023/datasets/can/parsed/1s",
         "output_path": "/home/joaoantoniocardoso/ZeniteSolar/2023/can_data/01072023/datasets/can/parsed/1s",
         "gps_file": gps_output_file,
-        "shift_back_localize": True,
         "period": "1s",
     }
 

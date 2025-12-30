@@ -5,7 +5,9 @@ from typing import Optional
 
 import pandas as pd
 import pytz
-import vaex
+import importlib
+
+vaex = importlib.import_module("vaex")
 
 
 def process_candump_file(
@@ -29,21 +31,31 @@ def process_candump_file(
     )
     print(output_filename)
     output_file = dataset_info["output_path"] + "/" + output_filename
+    os.makedirs(dataset_info["output_path"], exist_ok=True)
     if verbose:
         print("output file:    ", output_file)
     if os.path.isfile(output_file):
         print("\t -> already converted, skipping this chunk...")
         return None
 
+    timezone = dataset_info["timezone"]
+    tzinfo = pytz.timezone(timezone)
+
     # Load telemetry data, and reindex as a constant-frequency/monotonic timeseries
     df_telemetry = vaex.open(telemetry_file)
-    df_telemetry = df_telemetry.to_pandas_df().set_index("timestamp")
+    df_telemetry = df_telemetry.to_pandas_df()
+    df_telemetry["timestamp"] = pd.to_datetime(df_telemetry["timestamp"])
+    df_telemetry = df_telemetry.set_index("timestamp")
     df_telemetry = df_telemetry[~df_telemetry.index.duplicated()]
-    df_telemetry = (
-        df_telemetry.asfreq(dataset_info["period"])
-        .tz_localize(pytz.timezone("America/Sao_Paulo"))
-        .reset_index()
-    )
+
+    telemetry_index = pd.DatetimeIndex(df_telemetry.index)
+    if telemetry_index.tz is None:
+        telemetry_index = telemetry_index.tz_localize(tzinfo)
+    else:
+        telemetry_index = telemetry_index.tz_convert(tzinfo)
+    df_telemetry.index = telemetry_index.tz_localize(None)
+
+    df_telemetry = df_telemetry.asfreq(dataset_info["period"]).reset_index()
     df_telemetry = vaex.from_pandas(df_telemetry)
 
     # Load and proccess Solar Data
@@ -51,20 +63,16 @@ def process_candump_file(
         dataset_info["forecast_file"],
         index_col="PeriodStart",
         parse_dates=["PeriodStart"],
-        infer_datetime_format=True,
     ).add_prefix("solcast_")
     df_forecast.index.rename("timestamp", inplace=True)
 
     # Reindex solar data using the telemetry timestamp as index
-    df_forecast.index = df_forecast.reset_index()["timestamp"].dt.tz_convert(
-        pytz.timezone("America/Sao_Paulo")
-    )  # type: ignore
-    index = pd.DatetimeIndex(
-        df_telemetry["timestamp"].to_numpy(), dtype="datetime64[ns, America/Sao_Paulo]"  # type: ignore
-    )
+    forecast_index = pd.DatetimeIndex(df_forecast.index)
+    if forecast_index.tz is None:
+        forecast_index = forecast_index.tz_localize(pytz.UTC)
+    df_forecast.index = forecast_index.tz_convert(tzinfo).tz_localize(None)
 
-    if dataset_info["shift_back_localize"]:
-        index -= pd.Timedelta(3, unit="H")
+    index = pd.DatetimeIndex(df_telemetry["timestamp"].to_numpy())  # type: ignore
 
     df_forecast = df_forecast.reindex(
         index=index,
