@@ -83,7 +83,7 @@ This document describes every data-processing step implemented in `lib/` and how
 - **Purpose:** Join resampled telemetry with processed Solcast forecast data.
 - **Steps:**
   1. Load telemetry HDF5 and reindex to a strict fixed frequency using `.asfreq(period)`.
-  2. Localize timestamps to `America/Sao_Paulo` and optionally apply a 3-hour shift (`shift_back_localize`).
+  2. Localize timestamps to `America/Sao_Paulo`.
   3. Load the forecast CSV, prefix columns with `solcast_`, and reindex to telemetry timestamps.
   4. Interpolate forecast values and join on `timestamp`.
   5. Export unified data as `unified_monotonic_data_<period>.hdf5`.
