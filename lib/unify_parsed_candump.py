@@ -1,20 +1,17 @@
-import vaex
-import numpy as np
-from numpy.typing import NDArray
 import multiprocessing
+import os
 from typing import List
-import pandas as pd
+
+import importlib
+
+vaex = importlib.import_module("vaex")
 
 
-def minmax(a: NDArray) -> tuple:
-    return np.min(a), np.max(a)
+def process_file(input_filename: str, file_ref: str) -> None:
+    df = vaex.open(input_filename)
+    dfr = vaex.open(file_ref)
 
-
-def process_file(input_filename, file_ref):
-    df = vaex.open(input_filename).to_pandas_df()
-    dfr = vaex.open(file_ref).to_pandas_df()
-
-    start, end = minmax(df["timestamp"].values)
+    start, end = df.minmax("timestamp")
     file_out = input_filename.replace("chunk", "combined_chunk")
     print(
         f"Combining file {input_filename} with {file_ref} from {start} to {end}, exporting to {file_out}."
@@ -22,23 +19,22 @@ def process_file(input_filename, file_ref):
 
     dfr = dfr[(dfr["timestamp"] >= start) & (dfr["timestamp"] <= end)]
 
-    df = pd.concat([df, dfr]).sort_values(by=["timestamp"])
-
-    vaex.from_pandas(df).export(file_out)
+    df_out = vaex.concat([df, dfr]).sort("timestamp")
+    os.makedirs(os.path.dirname(file_out) or ".", exist_ok=True)
+    df_out.export(file_out)
 
 
 def process_dataset(
-    input_filename_list: List[str], file_ref: str, parallel: bool = True
+    input_filename_list: List[str], file_ref: str, parallel: bool = False
 ):
-    returns = []
+    if not parallel:
+        for input_filename in input_filename_list:
+            process_file(input_filename, file_ref)
+        return
 
+    returns = []
     with multiprocessing.Pool(processes=multiprocessing.cpu_count()) as pool:
         for input_filename in input_filename_list:
-            if parallel:
-                returns += [
-                    pool.apply_async(process_file, args=(input_filename, file_ref))
-                ]
-            else:
-                process_file(input_filename, file_ref)
+            returns += [pool.apply_async(process_file, args=(input_filename, file_ref))]
         for x in returns:
             x.get()
