@@ -193,6 +193,7 @@ def resample():
 
     resample_agg_rules = [
         {"pattern": r"__STATE__", "agg": "last"},
+        {"pattern": r"ERROR", "agg": "last"},
         {"pattern": r"(?:^|__)ON(?:__|$)", "agg": "last"},
         {"pattern": r"MOTOR__MOTOR", "agg": "last"},
         {"pattern": r"__D$", "agg": "mean"},
@@ -204,6 +205,7 @@ def resample():
 
     fill_method_rules = [
         {"pattern": r"__STATE__", "method": "ffill"},
+        {"pattern": r"ERROR", "method": "ffill"},
         {"pattern": r"(?:^|__)ON(?:__|$)", "method": "ffill"},
         {"pattern": r"MOTOR__MOTOR", "method": "ffill"},
         {"pattern": r"__D$", "method": "ffill"},
@@ -219,11 +221,13 @@ def resample():
         ).as_list()
 
         if resample_period == "50ms":
-            fill_limit_seconds = 0.25
+            fill_limit_seconds = 50e-3
         elif resample_period == "100ms":
-            fill_limit_seconds = 0.5
+            fill_limit_seconds = 100e-3
+        elif resample_period == "1s":
+            fill_limit_seconds = 1.0
         else:
-            fill_limit_seconds = 2.0
+            fill_limit_seconds = 0
 
         for d in dataset_info_list:
             d["resample_agg"] = "mean"
@@ -301,7 +305,7 @@ def unify_forecast():
 
 
 if __name__ == "__main__":
-    # parse()
-    # unify()
-    # resample()
+    parse()
+    unify()
+    resample()
     unify_forecast()
