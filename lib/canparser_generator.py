@@ -16,11 +16,11 @@ class CanTopicParser:
             schema = schema.copy()
         for module in schema["modules"]:
             for topic in schema["modules"][module]["topics"]:
-                schema["modules"][module]["topics"][topic][
-                    "parser"
-                ] = CanTopicParser.create(
-                    schema["modules"][module]["name"],
-                    schema["modules"][module]["topics"][topic],
+                schema["modules"][module]["topics"][topic]["parser"] = (
+                    CanTopicParser.create(
+                        schema["modules"][module]["name"],
+                        schema["modules"][module]["topics"][topic],
+                    )
                 )
 
         return schema
@@ -82,7 +82,7 @@ class CanTopicParser:
             "u16": (ctypes.c_uint16, 16),  # old format
             "uint8_t": (ctypes.c_uint8, 8),
             "uint16_t": (ctypes.c_uint16, 16),
-            "bitfield": (ctypes.c_uint8, 1),
+            "bitfield": (ctypes.c_uint8, 8),
         }
         fields = []
         for byte in topic["bytes"]:
